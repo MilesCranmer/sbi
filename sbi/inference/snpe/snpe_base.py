@@ -5,8 +5,7 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from copy import deepcopy
-from sbi.user_input.user_input_checks import check_estimator_arg
-from typing import Callable, Dict, Optional, Tuple, Union, cast, Any
+from typing import Any, Callable, Dict, Optional, Tuple, Union, cast
 from warnings import warn
 
 import numpy as np
@@ -21,6 +20,7 @@ import sbi.utils as utils
 from sbi.inference import NeuralInference
 from sbi.inference.posterior import NeuralPosterior
 from sbi.types import OneOrMore, ScalarFloat
+from sbi.user_input.user_input_checks import check_estimator_arg
 from sbi.utils import check_estimator_arg, x_shape_from_simulation
 
 
@@ -118,10 +118,14 @@ class PosteriorEstimator(NeuralInference, ABC):
     ) -> NeuralPosterior:
         r"""Run SNPE.
 
-        Return posterior $p(\theta|x)$ after inference (possibly over several rounds).
+        Return posterior $p(\theta|x)$ after inference.
 
         Args:
-            num_simulations: Number of simulator calls for the current round.
+            num_simulations: Number of simulator calls.
+            proposal: Distribution that the parameters $\theta$ are drawn from.
+                `proposal=None` uses the prior (i.e. single-round inference). Setting
+                the proposal to e.g. the posterior of the previous round leads to
+                multi-round inference.
             training_batch_size: Training batch size.
             learning_rate: Learning rate for Adam optimizer.
             validation_fraction: The fraction of data to use for validation.
@@ -146,8 +150,6 @@ class PosteriorEstimator(NeuralInference, ABC):
             Posterior $p(\theta|x)$ that can be sampled and evaluated.
         """
 
-        # TODO: check the proposal. E.g. if it's a neuralPosterior, see if it has a default x.
-
         self._warn_if_retrain_from_scratch_snpe(retrain_from_scratch_each_round)
 
         # Calibration kernels proposed in Lueckmann, Gonçalves et al., 2017.
@@ -157,7 +159,9 @@ class PosteriorEstimator(NeuralInference, ABC):
         max_num_epochs = 2 ** 31 - 1 if max_num_epochs is None else max_num_epochs
 
         self._check_proposal(proposal)
-        self._maybe_update_round(proposal)
+        self._round = (
+            self._round + 1 if (proposal is not None and self._round is not None) else 0
+        )
 
         # Run simulations for the round.
         theta, x = self._run_simulations(proposal, num_simulations)

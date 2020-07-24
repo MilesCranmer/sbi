@@ -3,7 +3,7 @@
 
 from __future__ import annotations
 
-from typing import Callable, Optional, Union, Any
+from typing import Any, Callable, Optional, Union
 
 import torch
 from torch import Tensor, eye, nn, ones
@@ -97,8 +97,8 @@ class SNPE_C(PosteriorEstimator):
 
     def __call__(
         self,
-        num_simulations: OneOrMore[int],
-        proposal: Union[str, Any],
+        num_simulations: int,
+        proposal: Optional[Any] = None,
         num_atoms: int = 10,
         training_batch_size: int = 50,
         learning_rate: float = 5e-4,
@@ -113,10 +113,14 @@ class SNPE_C(PosteriorEstimator):
     ) -> NeuralPosterior:
         r"""Run SNPE.
 
-        Return posterior $p(\theta|x)$ after inference (possibly over several rounds).
+        Return posterior $p(\theta|x)$ after inference.
 
         Args:
-            num_simulations: Number of simulator calls per round.
+            num_simulations: Number of simulator calls.
+            proposal: Distribution that the parameters $\theta$ are drawn from.
+                `proposal=None` uses the prior (i.e. single-round inference). Setting
+                the proposal to e.g. the posterior of the previous round leads to
+                multi-round inference.
             num_atoms: Number of atoms to use for classification.
             training_batch_size: Training batch size.
             learning_rate: Learning rate for Adam optimizer.
